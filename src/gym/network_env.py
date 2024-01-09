@@ -149,26 +149,24 @@ class Network:
     def run_for_dur(self, dur):
         for sender in self.senders:
             sender.reset_obs()
+
+        start_time = self.cur_time
         end_time = self.cur_time + dur
         while self.cur_time < end_time:  # 平等的对待所有sender，每一轮每个sender都发一个包
             cnt = 0
-            can_sends = []
             for sender in self.senders:
                 while sender.can_send_packet():
                     p = Packet(0, self.cur_time, sender)
                     sender.send_packet(p)
-                if len(sender.packetQueue)>0: # 有包还没被网络传输
                     cnt += 1
-                    can_sends.append(sender)
-                    # pos = sender.find_first_need_send()
-                    # sender.packetQueue[pos].waiting_for_send = False
 
-            if cnt == 0: # 无包发送，手动过一段时间
-                cnt = len(self.senders)
-            cur_batch_size = cnt * PACKET_SIZE
-            delay = 0
+            if cnt == 0:  # 无包发送，手动过一段时间
+                cur_batch_size = len(self.senders)*PACKET_SIZE
+            else:
+                cur_batch_size = cnt * PACKET_SIZE
+            # delay = 0
             size = 0
-            while True:  # 将这一轮包发完
+            while self.cur_time < end_time:  # 将这一轮包发完
                 throughput = self.cooked_bw[self.mahimahi_ptr] * B_IN_MB
                 duration = self.cooked_time[self.mahimahi_ptr] - self.last_mahimahi_time
                 if throughput * duration + size >= cur_batch_size:
@@ -176,24 +174,36 @@ class Network:
                             (cur_batch_size - size)
                             / throughput
                     )
-                    delay += fractional_time
+                    self.cur_time += fractional_time
+                    size += throughput * fractional_time
                     self.last_mahimahi_time += fractional_time
                     assert self.last_mahimahi_time <= self.cooked_time[self.mahimahi_ptr]
                     break
                 size += throughput * duration
-                delay += duration
+                self.cur_time += duration
                 self.increase_mahimahi()
 
-            self.cur_time += delay
-            # 确认收到
-            for sender in can_sends:
+            if cnt>0:
+                arrive_cnt = size // PACKET_SIZE + 1  # 到达量分配给每个sender
+                while arrive_cnt > 0:
+                    ok = False
+                    for sender in self.senders:
+                        if sender.arrive_cnt < len(sender.packetQueue):
+                            ok = True
+                            sender.arrive_cnt += 1
+                            arrive_cnt -= 1
+                    if not ok: break
 
-                if random.randint(0, 1000) / 1000 < self.env_loss_rate: # 丢包了
-                    sender.packetQueue = sender.packetQueue[1:]
-                    sender.on_packet_lost()
+            # 确认收到
+            # while self.cur_time < end_time:
+            for sender in self.senders:
                 while sender.has_packet_arrive(self.cur_time):
-                    sender.on_packet_acked(self.cur_time)
+                    if random.randint(0, 1000) / 1000 < self.env_loss_rate:  # 丢包了
+                        sender.on_packet_lost()
+                    else:
+                        sender.on_packet_acked(self.cur_time)
                     sender.packetQueue = sender.packetQueue[1:]
+                    sender.arrive_cnt -= 1
 
             # 只保留网络容量的包，其余的包全部丢失
             remain_packet_num = 0
@@ -205,7 +215,7 @@ class Network:
             # 平等的丢包
             if remain_packet_num > self.env_pack_volume:
                 avg_drop = (remain_packet_num - self.env_pack_volume) // remain_sender
-                drop_delay = 0.1
+                drop_delay = min(1.0, avg_drop * 0.1)
                 self.cur_time += drop_delay
                 self.cur_time = min(self.cur_time, end_time)
 
@@ -219,7 +229,7 @@ class Network:
         for sender in self.senders:
             sender_mis.append(sender.get_run_data())
 
-        return sender_mis
+        return sender_mis, self.cur_time - start_time
 
     def load_trace(self, cooked_trace_folder=COOKED_TRACE_FOLDER):
         cooked_files = os.listdir(cooked_trace_folder)

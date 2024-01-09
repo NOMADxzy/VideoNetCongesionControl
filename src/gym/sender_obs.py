@@ -133,7 +133,7 @@ def _mi_metric_recv_rate(mi):
     dur = mi.get("recv dur")
     if dur > 0.0:
         #print(mi.bytes_acked," ",mi.packet_size," ",dur)
-        return 8.0 * (mi.bytes_acked - mi.packet_size) / dur
+        return 8.0 * mi.bytes_acked / dur
     return 0.0
 
 def _mi_metric_recv_dur(mi):

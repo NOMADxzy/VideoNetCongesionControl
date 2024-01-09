@@ -21,7 +21,7 @@ import sender_obs, sender, network_env
 MAX_STEPS = 10000
 ACTION_DIM = 9
 LATENCY_PENALTY = 1
-LOSS_PENALTY = 100
+LOSS_PENALTY = 10
 THROUGHPUT_SCALAR = 2e5
 BIT_IN_BYTES = 8
 TEST_TRACE_IDX = 1
@@ -99,14 +99,14 @@ class SimulatedNetworkEnv(gym.Env):
             delta = (actions[i] - self.action_mean) / self.action_mean
             sender.apply_cwnd_delta(delta)
 
-        sender_mis = self.net.run_for_dur(self.run_dur)
+        sender_mis, dur = self.net.run_for_dur(self.run_dur)
 
         for sender in self.senders:
             sender.record_run()
         self.steps_taken += 1
         avg_sender_obs, each_sender_obs = self._get_all_sender_obs()
 
-        rewards,throughputs,latencies,losses = [], [], [], []
+        rewards,throughputs,latencies,losses,cwnds = [], [], [], [], []
         for i,sender_mi in enumerate(sender_mis):
             # sender = self.senders[i]
             throughput = sender_mi.get("recv rate")
@@ -116,11 +116,13 @@ class SimulatedNetworkEnv(gym.Env):
             throughputs.append(throughput)
             latencies.append(latency)
             losses.append(loss)
+            cwnds.append(sender_mi.get("cwnd"))
 
             reward = (throughput / (BIT_IN_BYTES * THROUGHPUT_SCALAR) - LATENCY_PENALTY * latency - LOSS_PENALTY * loss)
             # if (sender.cwnd - MAX_BURST_PACKETS) * BYTES_PER_PACKET < sender.bytes_in_flight:
             #     reward -= 10
-            reward *= 10
+            if reward>5:
+                reward *= 10
             rewards.append(reward)
         avg_reward = sum(rewards)/len(rewards)
         self.reward_list.append(avg_reward)
@@ -146,7 +148,7 @@ class SimulatedNetworkEnv(gym.Env):
             print("steps_taken",self.steps_taken)
         """
         return [avg_sender_obs, each_sender_obs], rewards, (self.steps_taken >= self.max_steps), \
-            {"step": self.steps_taken, "action": actions[0], "throughput":np.mean(throughputs), "latency":np.mean(latencies), "loss":np.mean(losses)}, {}  # ,123
+            {"step": self.steps_taken, "action": np.mean(actions), "throughput":np.mean(throughputs), "latency":np.mean(latencies), "loss":np.mean(losses)}, cwnds  # ,123
 
     def print_debug(self):
         print("---Sender Debug---")

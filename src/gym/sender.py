@@ -48,6 +48,7 @@ class Sender():
 
         self.packetQueue = []
         self.last_cwnd_action = 0.0
+        self.arrive_cnt = 0
 
 
     def get_bytes_in_flight(self):
@@ -60,7 +61,7 @@ class Sender():
             self.set_cwnd(self.cwnd * (1.0 + delta))
         else:
             self.set_cwnd(self.cwnd / (1.0 - delta))
-        # self.cwnd = 10
+        # self.cwnd = 1
 
     def send_packet(self, p):
         self.on_packet_sent()
@@ -82,7 +83,7 @@ class Sender():
         return l
 
     def has_packet_arrive(self, now):
-        return len(self.packetQueue)>0 and (now - self.packetQueue[0].spawn_time) > LINK_DELAY\
+        return len(self.packetQueue)>0 and self.arrive_cnt>0 and (now - self.packetQueue[0].spawn_time) > LINK_DELAY
             # and not self.packetQueue[0].waiting_for_send
 
     def register_network(self, net):
@@ -141,7 +142,7 @@ class Sender():
             recv_end=obs_end_time,
             rtt_samples=self.rtt_samples,
             packet_size=BYTES_PER_PACKET,
-            cwnd=self.cwnd/MAX_CWND,
+            cwnd=self.cwnd*10/MAX_CWND,
             last_cwnd_action=self.last_cwnd_action
         )
 

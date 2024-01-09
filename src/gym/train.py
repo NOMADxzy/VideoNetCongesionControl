@@ -33,7 +33,7 @@ GAMMA = 0.9  # reward discount
 TAU = 0.01  # soft replacement
 MEMORY_CAPACITY = 10000
 BATCH_SIZE = 32
-SENDERS_NUM = 100
+SENDERS_NUM = 1
 
 
 env = SimulatedNetworkEnv(SENDERS_NUM)
@@ -69,8 +69,8 @@ def trans_state(obs):
 
 def run_test(_ep):
     print("-- TEST START --")
-    avg_senders_obs, each_sender_obs = env.reset()
-    state = np.float32(clip_state(avg_senders_obs))
+    obs = env.reset()
+    states = trans_state(obs)
 
     avg_rewards = []
     avg_throughputs = []
@@ -79,19 +79,20 @@ def run_test(_ep):
     for r in tqdm(range(MAX_EP_STEPS)):
         env.render()
 
-        avg_actions, avg_action, strength = trainer.get_exploration_action(state)
-
         actions = []
-        for i in range(0, len(env.senders)):
-            actions.append(avg_action)
-        new_obs, rewards, done, info, _ = env.step(actions)
+        acts = []
+        for state in states:
+            action, act, strength = trainer.get_exploration_action(state)
+            actions.append(action)
+            acts.append(act)
+        new_obs, rewards, done, info, _ = env.step(acts)
+
         avg_rewards.append(np.mean(rewards))
         avg_throughputs.append(info["throughput"])
         avg_latencies.append(info["latency"])
         avg_losses.append(info["loss"])
 
-        new_state = np.float32(clip_state(new_obs[0]))
-        state = new_state
+        states = trans_state(new_obs)
 
         if done:
             break
@@ -114,32 +115,34 @@ for _ep in range(MAX_EPISODES):
     for r in range(MAX_EP_STEPS):
         env.render()
 
-
         actions = []
         acts = []
         for state in states:
             action, act, strength = trainer.get_exploration_action(state)
             actions.append(action)
             acts.append(act)
-        new_obs, rewards, done, info,_ = env.step(acts)
+        new_obs, rewards, done, info,cwnds = env.step(acts)
         avg_reward = np.mean(rewards)
-        avg_action = np.mean(acts)
-        print("avg_reward:" + str(avg_reward), "action:" + str(avg_action), info)
+        avg_cwnd = np.mean(cwnds)
+        print("avg_reward:" + str(avg_reward), "cwnds:" + str(cwnds), info)
 
         new_states = trans_state(new_obs)
+        anti_dup = set({})
         for i in range(0,len(env.senders)):
             state = states[i]
             action = actions[i]
             reward = rewards[i]
             new_state = new_states[i]
-            ram.add(state, action, reward, new_state)
+            if reward not in anti_dup:
+                anti_dup.add(reward)
+                ram.add(state, action, reward, new_state)
 
         states = new_states
         trainer.optimize()
         if done:
             break
 
-    # run_test(_ep)
+    run_test(_ep)
     gc.collect()
     if _ep % 10 == 0:
         trainer.save_models("cwnd", _ep)

@@ -60,12 +60,12 @@ class Trainer:
 		state = state.unsqueeze(0).type(torch.FloatTensor)
 		action = self.actor.forward(state)
 
-		# probs = F.softmax(action, dim=0)
-		# torch_action = probs.multinomial(num_samples=1)
-		action = action.detach()
-		a_idx = action.detach().numpy().argmax()
-		# a_idx = int(torch_action.squeeze().cpu().numpy())
-		# new_action = action.data.numpy() + (self.noise.sample() * self.action_lim)
+		tmp = action.multinomial(num_samples=1).detach()
+		a_idx = int(tmp.squeeze().cpu().numpy())
+
+		# action = action.detach()
+		# a_idx = action.detach().numpy().argmax()
+
 		return action.data.numpy(), a_idx, action[0][a_idx]
 
 	def optimize(self):
