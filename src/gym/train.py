@@ -2,7 +2,7 @@ import gc, os
 import numpy as np
 import time
 from env_wrapper import SimulatedNetworkEnv
-from linearNet import train, buffer
+from CNN import train, buffer
 from torch.utils.tensorboard import SummaryWriter
 import utils
 from tqdm import tqdm
@@ -10,7 +10,7 @@ from tqdm import tqdm
 # env = gym.make('PccNs-v0')
 
 SUMMARY_DIR = "./Results/sim"
-add_str = "linearNet"
+add_str = "CNN"
 summary_dir = os.path.join(*[SUMMARY_DIR, add_str])
 summary_dir = os.path.join(*[summary_dir, "log"])
 ts = time.strftime("%b%d-%H:%M:%S", time.gmtime())
@@ -44,8 +44,8 @@ a_dim = env.action_space.n
 total_total_reward = 0
 
 ram = buffer.MemoryBuffer(MAX_BUFFER)
-trainer = train.Trainer(STATE_DIM, ACTION_DIM, A_MAX, ram)
-trainer.load_models(msg="cwnd", episode=20)
+trainer = train.Trainer(STATE_DIM, ACTION_DIM, ram)
+# trainer.load_models(msg="cwnd", episode=20)
 
 
 def clip_state(state: np.ndarray):
@@ -53,6 +53,18 @@ def clip_state(state: np.ndarray):
     rate = state[1][4:]
     other = np.asarray([state[2][-1], state[2][-1], state[3][-1], state[4][-1]])
     return np.hstack((rate, other))
+
+
+def trans_state(obs):
+    avg_senders_obs, each_sender_obs = obs
+    avg_senders_obs = avg_senders_obs.transpose()
+    states = []
+    avg_state = np.asarray([avg_senders_obs[1], avg_senders_obs[4]])
+    for sender_obs in each_sender_obs:
+        sender_obs = sender_obs.transpose()
+        state = np.vstack((sender_obs, avg_state))
+        states.append(state)
+    return np.float32(states)
 
 
 def run_test(_ep):
@@ -94,31 +106,40 @@ def run_test(_ep):
 
 
 for _ep in range(MAX_EPISODES):
-    avg_senders_obs, each_sender_obs = env.reset()
-    state = np.float32(clip_state(avg_senders_obs))
+    obs = env.reset()
+    states = trans_state(obs)
+    # state = np.float32(clip_state(avg_senders_obs))
     print('EPISODE :- ', _ep)
 
     for r in range(MAX_EP_STEPS):
         env.render()
 
-        avg_actions, avg_action, strength = trainer.get_exploration_action(state)
 
         actions = []
-        for i in range(0, len(env.senders)):
-            actions.append(avg_action)
-        new_obs, rewards, done, info,_ = env.step(actions)
+        acts = []
+        for state in states:
+            action, act, strength = trainer.get_exploration_action(state)
+            actions.append(action)
+            acts.append(act)
+        new_obs, rewards, done, info,_ = env.step(acts)
         avg_reward = np.mean(rewards)
+        avg_action = np.mean(acts)
         print("avg_reward:" + str(avg_reward), "action:" + str(avg_action), info)
 
-        new_state = np.float32(clip_state(new_obs[0]))
-        ram.add(state, avg_actions, avg_reward, new_state)
-        state = new_state
+        new_states = trans_state(new_obs)
+        for i in range(0,len(env.senders)):
+            state = states[i]
+            action = actions[i]
+            reward = rewards[i]
+            new_state = new_states[i]
+            ram.add(state, action, reward, new_state)
 
+        states = new_states
         trainer.optimize()
         if done:
             break
 
-    run_test(_ep)
+    # run_test(_ep)
     gc.collect()
     if _ep % 10 == 0:
         trainer.save_models("cwnd", _ep)

@@ -34,6 +34,7 @@ class SenderMonitorInterval():
                  utilization=[],
                  utilization0=[],
                  aoi=0,
+                 cwnd=0.0,
                  last_cwnd_action=0.0):
         self.features = {}
         self.sender_id = sender_id
@@ -51,6 +52,7 @@ class SenderMonitorInterval():
         self.utilization = utilization
         self.utilization0 = utilization0
         self.aoi=aoi
+        self.cwnd=cwnd
         self.last_cwnd_action=last_cwnd_action
     def get_wrong(self, feature):
         return self.sender_id
@@ -239,6 +241,9 @@ def _mi_metric_aoi(mi):
 def _mi_metric_last_cwnd_action(mi):
     return mi.last_cwnd_action
 
+def _mi_metric_cwnd(mi):
+    return mi.cwnd
+
 SENDER_MI_METRICS = [
     SenderMonitorIntervalMetric("send rate", _mi_metric_send_rate, 0.0, 1e9, 1e7),
     SenderMonitorIntervalMetric("recv rate", _mi_metric_recv_rate, 0.0, 1e9, 1e7),
@@ -257,7 +262,8 @@ SENDER_MI_METRICS = [
     SenderMonitorIntervalMetric("Link1 bandwidth", _mi_metric_bw1, 0.0, 1.0),
     SenderMonitorIntervalMetric("Link2 bandwidth", _mi_metric_bw2, 0.0, 1.0),
     SenderMonitorIntervalMetric("aoi", _mi_metric_aoi, 0.0, 200.0),
-    SenderMonitorIntervalMetric("last_cwnd_action", _mi_metric_last_cwnd_action, -1.0, 1.0)
+    SenderMonitorIntervalMetric("last_cwnd_action", _mi_metric_last_cwnd_action, -1.0, 1.0),
+    SenderMonitorIntervalMetric("cwnd", _mi_metric_cwnd, -1.0, 1.0)
 ]
 
 

@@ -22,7 +22,7 @@ MAX_STEPS = 10000
 ACTION_DIM = 9
 LATENCY_PENALTY = 1
 LOSS_PENALTY = 100
-THROUGHPUT_SCALAR = 1e5
+THROUGHPUT_SCALAR = 2e5
 BIT_IN_BYTES = 8
 TEST_TRACE_IDX = 1
 MAX_BURST_PACKETS = 2
@@ -38,7 +38,7 @@ class SimulatedNetworkEnv(gym.Env):
                           "avg latency,"
                           "latency increase,"
                           "loss ratio,"
-                          "last_cwnd_action"):
+                          "cwnd"):
         self.features = features.split(",")
         self.featureIdx = {}
         for i,feature in enumerate(self.features):
@@ -120,6 +120,7 @@ class SimulatedNetworkEnv(gym.Env):
             reward = (throughput / (BIT_IN_BYTES * THROUGHPUT_SCALAR) - LATENCY_PENALTY * latency - LOSS_PENALTY * loss)
             # if (sender.cwnd - MAX_BURST_PACKETS) * BYTES_PER_PACKET < sender.bytes_in_flight:
             #     reward -= 10
+            reward *= 10
             rewards.append(reward)
         avg_reward = sum(rewards)/len(rewards)
         self.reward_list.append(avg_reward)
@@ -134,7 +135,7 @@ class SimulatedNetworkEnv(gym.Env):
         event["Avg Latency"] = avg_sender_obs[-1][self.featureIdx["avg latency"]]
         event["Latency Increase"] = avg_sender_obs[-1][self.featureIdx["latency increase"]]
         event["loss ratio"] = avg_sender_obs[-1][self.featureIdx["loss ratio"]]
-        event["last_cwnd_action"] = avg_sender_obs[-1][self.featureIdx["last_cwnd_action"]]
+        event["cwnd"] = avg_sender_obs[-1][self.featureIdx["cwnd"]]
 
         # event["Cwnd"] = sender_mi.cwnd
         # event["Cwnd Used"] = sender_mi.cwnd_used

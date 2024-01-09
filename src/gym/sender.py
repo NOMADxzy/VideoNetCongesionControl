@@ -141,7 +141,7 @@ class Sender():
             recv_end=obs_end_time,
             rtt_samples=self.rtt_samples,
             packet_size=BYTES_PER_PACKET,
-
+            cwnd=self.cwnd/MAX_CWND,
             last_cwnd_action=self.last_cwnd_action
         )
 
