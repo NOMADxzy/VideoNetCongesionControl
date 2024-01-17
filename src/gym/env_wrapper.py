@@ -22,7 +22,7 @@ MAX_STEPS = 10000
 ACTION_DIM = 9
 LATENCY_PENALTY = 1
 LOSS_PENALTY = 10
-THROUGHPUT_SCALAR = 2e5
+THROUGHPUT_SCALAR = 1e5
 BIT_IN_BYTES = 8
 TEST_TRACE_IDX = 1
 MAX_BURST_PACKETS = 2
@@ -77,6 +77,7 @@ class SimulatedNetworkEnv(gym.Env):
 
         self.event_record = {"Events": []}
         self.episodes_run = -1
+        self.expert_prob = 1
 
     def seed(self, seed=None):
         self.rand, seed = seeding.np_random(seed)
@@ -112,17 +113,18 @@ class SimulatedNetworkEnv(gym.Env):
             throughput = sender_mi.get("recv rate")
             latency = sender_mi.get("avg latency")
             loss = sender_mi.get("loss ratio")
+            cwnd = sender_mi.get("cwnd")
 
             throughputs.append(throughput)
             latencies.append(latency)
             losses.append(loss)
-            cwnds.append(sender_mi.get("cwnd"))
+            cwnds.append(cwnd)
 
             reward = (throughput / (BIT_IN_BYTES * THROUGHPUT_SCALAR) - LATENCY_PENALTY * latency - LOSS_PENALTY * loss)
             # if (sender.cwnd - MAX_BURST_PACKETS) * BYTES_PER_PACKET < sender.bytes_in_flight:
             #     reward -= 10
-            if reward>5:
-                reward *= 10
+            if cwnd == 0.008 and np.random.randint(0,1000)/1000<self.expert_prob:
+                reward = -1
             rewards.append(reward)
         avg_reward = sum(rewards)/len(rewards)
         self.reward_list.append(avg_reward)
@@ -148,7 +150,8 @@ class SimulatedNetworkEnv(gym.Env):
             print("steps_taken",self.steps_taken)
         """
         return [avg_sender_obs, each_sender_obs], rewards, (self.steps_taken >= self.max_steps), \
-            {"step": self.steps_taken, "action": np.mean(actions), "throughput":np.mean(throughputs), "latency":np.mean(latencies), "loss":np.mean(losses)}, cwnds  # ,123
+            {"step": self.steps_taken, "action": np.mean(actions), "throughput":np.mean(throughputs),
+             "latency":np.mean(latencies), "loss":np.mean(losses), "cwnd": np.mean(cwnds)}, cwnds  # ,123
 
     def print_debug(self):
         print("---Sender Debug---")

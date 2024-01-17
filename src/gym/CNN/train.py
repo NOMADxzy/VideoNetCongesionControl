@@ -1,4 +1,8 @@
 from __future__ import division
+
+import random
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,7 +12,7 @@ import CNN.utils as utils
 import CNN.model as model
 
 BATCH_SIZE = 128
-LEARNING_RATE = 0.01
+LEARNING_RATE = 0.03
 GAMMA = 0.99
 TAU = 0.001
 
@@ -28,6 +32,7 @@ class Trainer:
 		self.ram = ram
 		self.iter = 0
 		self.noise = utils.OrnsteinUhlenbeckActionNoise(self.action_dim)
+		self.noise_weight = 1
 
 		self.actor = model.Actor(self.state_dim, self.action_dim)
 		self.target_actor = model.Actor(self.state_dim, self.action_dim)
@@ -36,6 +41,7 @@ class Trainer:
 		self.critic = model.Critic(self.state_dim, self.action_dim)
 		self.target_critic = model.Critic(self.state_dim, self.action_dim)
 		self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),LEARNING_RATE)
+		self.eps = 3
 
 		utils.hard_update(self.target_actor, self.actor)
 		utils.hard_update(self.target_critic, self.critic)
@@ -60,13 +66,18 @@ class Trainer:
 		state = state.unsqueeze(0).type(torch.FloatTensor)
 		action = self.actor.forward(state)
 
-		tmp = action.multinomial(num_samples=1).detach()
-		a_idx = int(tmp.squeeze().cpu().numpy())
+		# tmp = action.multinomial(num_samples=1).detach()
+		# a_idx = int(tmp.squeeze().cpu().numpy())
 
-		# action = action.detach()
-		# a_idx = action.detach().numpy().argmax()
+		action = action.detach()
+		noi = 0.1 * self.noise.sample(self.noise_weight)
+		new_action = action + noi
+		new_action = new_action.detach().numpy()
+		new_action = np.divide(new_action, np.sum(new_action))
+		a_idx = new_action.argmax()
 
-		return action.data.numpy(), a_idx, action[0][a_idx]
+
+		return new_action, a_idx , action[0][a_idx]
 
 	def optimize(self):
 		"""

@@ -70,7 +70,8 @@ class SenderMonitorInterval():
     def as_array(self, features):
         #print(self.get("send rate"))
         #print(SenderMonitorIntervalMetric.get_by_name("send rate").scale)
-        return [self.get(f) / SenderMonitorIntervalMetric.get_by_name(f).scale for f in features]
+        return [max(0, self.get(f) - SenderMonitorIntervalMetric.get_by_name(f).min_val)
+                / SenderMonitorIntervalMetric.get_by_name(f).scale for f in features]
 
 class SenderHistory():
     def __init__(self, length, features, sender_id):
@@ -245,14 +246,14 @@ def _mi_metric_cwnd(mi):
     return mi.cwnd
 
 SENDER_MI_METRICS = [
-    SenderMonitorIntervalMetric("send rate", _mi_metric_send_rate, 0.0, 1e9, 1e7),
-    SenderMonitorIntervalMetric("recv rate", _mi_metric_recv_rate, 0.0, 1e9, 1e7),
+    SenderMonitorIntervalMetric("send rate", _mi_metric_send_rate, 1e5, 1e8, 1e5),
+    SenderMonitorIntervalMetric("recv rate", _mi_metric_recv_rate, 1e5, 1e8, 1e5),
     SenderMonitorIntervalMetric("recv dur", _mi_metric_recv_dur, 0.0, 100.0),
     SenderMonitorIntervalMetric("send dur", _mi_metric_send_dur, 0.0, 100.0),
     SenderMonitorIntervalMetric("avg latency", _mi_metric_avg_latency, 0.0, 100.0),
     SenderMonitorIntervalMetric("loss ratio", _mi_metric_loss_ratio, 0.0, 1.0),
-    SenderMonitorIntervalMetric("ack latency inflation", _mi_metric_ack_latency_inflation, -1.0, 10.0),
-    SenderMonitorIntervalMetric("sent latency inflation", _mi_metric_sent_latency_inflation, -1.0, 10.0),
+    SenderMonitorIntervalMetric("ack latency inflation", _mi_metric_ack_latency_inflation, 0, 10.0),
+    SenderMonitorIntervalMetric("sent latency inflation", _mi_metric_sent_latency_inflation, 0, 10.0),
     SenderMonitorIntervalMetric("conn min latency", _mi_metric_conn_min_latency, 0.0, 100.0),
     SenderMonitorIntervalMetric("latency increase", _mi_metric_latency_increase, 0.0, 100.0),
     SenderMonitorIntervalMetric("latency ratio", _mi_metric_latency_ratio, 1.0, 10000.0),
@@ -263,7 +264,7 @@ SENDER_MI_METRICS = [
     SenderMonitorIntervalMetric("Link2 bandwidth", _mi_metric_bw2, 0.0, 1.0),
     SenderMonitorIntervalMetric("aoi", _mi_metric_aoi, 0.0, 200.0),
     SenderMonitorIntervalMetric("last_cwnd_action", _mi_metric_last_cwnd_action, -1.0, 1.0),
-    SenderMonitorIntervalMetric("cwnd", _mi_metric_cwnd, -1.0, 1.0)
+    SenderMonitorIntervalMetric("cwnd", _mi_metric_cwnd, 0, 1.0)
 ]
 
 

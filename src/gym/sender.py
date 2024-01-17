@@ -61,7 +61,7 @@ class Sender():
             self.set_cwnd(self.cwnd * (1.0 + delta))
         else:
             self.set_cwnd(self.cwnd / (1.0 - delta))
-        # self.cwnd = 1
+        # self.cwnd = 10000
 
     def send_packet(self, p):
         self.on_packet_sent()
@@ -148,8 +148,11 @@ class Sender():
 
     ###############################################ACP#################
     def reset_obs(self):
+        self.bytes_in_flight = 0
+        self.arrive_cnt = 0
+        self.sent = 0
         self.obs_start_time = self.net.get_cur_time()
-        self.sent = self.bytes_in_flight / BYTES_PER_PACKET
+        # self.sent = self.bytes_in_flight / BYTES_PER_PACKET
         self.acked = 0
         self.lost = 0
         self.rtt_samples = []

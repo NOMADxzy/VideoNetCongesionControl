@@ -65,11 +65,11 @@ class OrnsteinUhlenbeckActionNoise:
 	def reset(self):
 		self.X = np.ones(self.action_dim) * self.mu
 
-	def sample(self):
+	def sample(self, weight):
 		dx = self.theta * (self.mu - self.X)
 		dx = dx + self.sigma * np.random.randn(len(self.X))
 		self.X = self.X + dx
-		return self.X
+		return self.X * weight
 
 
 # use this to plot Ornstein Uhlenbeck random motion

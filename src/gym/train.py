@@ -6,6 +6,7 @@ from CNN import train, buffer
 from torch.utils.tensorboard import SummaryWriter
 import utils
 from tqdm import tqdm
+import scipy.stats as stats
 
 # env = gym.make('PccNs-v0')
 
@@ -23,17 +24,18 @@ writer = SummaryWriter(log_file_path)
 STATE_DIM = 8
 ACTION_DIM = 9
 A_MAX = 1
+MEAN_ACT = ACTION_DIM//2
 
 MAX_BUFFER = 100000
 MAX_EPISODES = 1000  # 200
-MAX_EP_STEPS = 1000  # 200
+MAX_EP_STEPS = 100  # 200
 LR_A = 0.001  # learning rate for actor
 LR_C = 0.002  # learning rate for critic
 GAMMA = 0.9  # reward discount
 TAU = 0.01  # soft replacement
 MEMORY_CAPACITY = 10000
 BATCH_SIZE = 32
-SENDERS_NUM = 1
+SENDERS_NUM = 10
 
 
 env = SimulatedNetworkEnv(SENDERS_NUM)
@@ -81,7 +83,8 @@ def run_test(_ep):
 
         actions = []
         acts = []
-        for state in states:
+
+        for i,state in enumerate(states):
             action, act, strength = trainer.get_exploration_action(state)
             actions.append(action)
             acts.append(act)
@@ -105,26 +108,47 @@ def run_test(_ep):
     writer.add_scalar("avg_rewards_mean", avg_rewards_mean, _ep)
     writer.flush()
 
+eps = 3
+eps_dec_factor = 0.995
+MAX_EPS = 2
 
 for _ep in range(MAX_EPISODES):
     obs = env.reset()
     states = trans_state(obs)
     # state = np.float32(clip_state(avg_senders_obs))
     print('EPISODE :- ', _ep)
+    info = {}
 
     for r in range(MAX_EP_STEPS):
         env.render()
 
         actions = []
         acts = []
+        use_expert = 0
+        if "loss" in info :
+            if info["loss"] > 0.1:
+                use_expert = -1
+            elif info["action"]<MEAN_ACT and info["cwnd"]<=0.01:
+                use_expert = 1
+
         for state in states:
             action, act, strength = trainer.get_exploration_action(state)
+            explore_act = act
+            if use_expert == -1 and act >= MEAN_ACT:
+                explore_act = 0
+                action[0][explore_act],action[0][act] = action[0][act],action[0][explore_act]
+            elif use_expert == 1 and act <= MEAN_ACT:
+                explore_act = ACTION_DIM-1
+                action[0][explore_act],action[0][act] = action[0][act],action[0][explore_act]
             actions.append(action)
-            acts.append(act)
+            # exlore_act = np.random.normal(act, eps)
+            acts.append(explore_act)
         new_obs, rewards, done, info,cwnds = env.step(acts)
         avg_reward = np.mean(rewards)
         avg_cwnd = np.mean(cwnds)
         print("avg_reward:" + str(avg_reward), "cwnds:" + str(cwnds), info)
+        # if avg_reward<0:
+        #     eps = min(eps+0.1, MAX_EPS)
 
         new_states = trans_state(new_obs)
         anti_dup = set({})
@@ -138,11 +162,15 @@ for _ep in range(MAX_EPISODES):
                 ram.add(state, action, reward, new_state)
 
         states = new_states
-        trainer.optimize()
+        if r%100 == 0:
+            trainer.noise_weight *= 0.965
+            env.expert_prob *= 0.965
+            trainer.optimize()
+            run_test(_ep)
         if done:
             break
 
-    run_test(_ep)
+    # run_test(_ep)
     gc.collect()
     if _ep % 10 == 0:
         trainer.save_models("cwnd", _ep)

@@ -217,7 +217,7 @@ class Network:
                 avg_drop = (remain_packet_num - self.env_pack_volume) // remain_sender
                 drop_delay = min(1.0, avg_drop * 0.1)
                 self.cur_time += drop_delay
-                self.cur_time = min(self.cur_time, end_time)
+                # self.cur_time = min(self.cur_time, end_time)
 
                 for sender in self.senders:
                     if len(sender.packetQueue) > 0:
