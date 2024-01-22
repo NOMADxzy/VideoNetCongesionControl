@@ -86,6 +86,9 @@ class Network:
         self.cooked_time = self.all_cooked_time[self.trace_idx]
         self.cooked_bw = self.all_cooked_bw[self.trace_idx]
 
+        # for i in range(len(self.cooked_bw)):
+        #     self.cooked_bw[i] *= 2
+
         # randomize the start point of the trace
         # note: trace file starts with time 0
         self.mahimahi_ptr = np.random.randint(1, len(self.cooked_bw))
@@ -145,6 +148,72 @@ class Network:
             # note: trace file starts with time 0
             self.mahimahi_ptr = 1
             self.last_mahimahi_time = self.cooked_time[self.mahimahi_ptr - 1]
+
+    def cpt_best_avg_cwnd(self, bandwidth):
+        min_bd = 1000 / LINK_RTT * PACKET_SIZE
+        return bandwidth / min_bd
+
+    def run(self, dur):
+        for sender in self.senders:
+            sender.reset_obs()
+        start_time = self.cur_time
+        end_time = self.cur_time + dur
+
+        size = 0
+        while self.cur_time < end_time:  # 将这一轮包发完
+            throughput = self.cooked_bw[self.mahimahi_ptr] * B_IN_MB
+            duration = self.cooked_time[self.mahimahi_ptr] - self.last_mahimahi_time
+            if self.cur_time + duration >= end_time:
+                fractional_time = (
+                        end_time - self.cur_time
+                )
+                self.cur_time += fractional_time
+                size += throughput * fractional_time
+                self.last_mahimahi_time += fractional_time
+                assert self.last_mahimahi_time <= self.cooked_time[self.mahimahi_ptr]
+                break
+            size += throughput * duration
+            self.cur_time += duration
+            self.increase_mahimahi()
+
+        total_cwnd = 0
+        for sender in self.senders:
+            total_cwnd += sender.cwnd
+
+        total_bandwidth = size / dur
+        avg_bandwidth = total_bandwidth / len(self.senders)
+        best_avg_cwnd = self.cpt_best_avg_cwnd(avg_bandwidth)
+        best_total_cwnd = best_avg_cwnd * len(self.senders)
+
+        if total_cwnd < best_total_cwnd + len(self.senders):
+            total_cwnd = min(total_cwnd, best_total_cwnd)
+            real_throuput = total_bandwidth * dur * total_cwnd / best_total_cwnd
+            loss_throuput = 0
+            latency = LINK_RTT / 1000
+        else :
+            tmp = (total_cwnd - best_total_cwnd) / best_total_cwnd
+            real_throuput = total_bandwidth * dur * (1 / (tmp + 1))
+            loss_throuput = total_bandwidth * dur - real_throuput
+            latency = LINK_RTT / 1000 * (tmp + 1)
+
+        sender_mis = []
+        for sender in self.senders:
+            sender.rtt_samples.append(latency)
+            weight = sender.cwnd / total_cwnd
+            sendput = weight * total_bandwidth * dur
+            throuput = weight * real_throuput
+            loss = weight * loss_throuput
+            assert sendput + 1 >= throuput
+            prepaired = {"bytes_sent":sendput, "bytes_acked": throuput, "bytes_lost": loss,
+                         "send_start":start_time, "send_end": end_time, "recv_start": start_time, "recv_end": end_time}
+            smi = sender.record_run(prepaired)
+            sender_mis.append(smi)
+
+
+        return sender_mis, self.cur_time - start_time
+
+
+
 
     def run_for_dur(self, dur):
         for sender in self.senders:

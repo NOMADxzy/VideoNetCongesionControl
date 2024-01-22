@@ -12,6 +12,7 @@ import sys
 import inspect
 import math
 import pdb
+from sender import MIN_CWND,MAX_CWND
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -21,7 +22,7 @@ import sender_obs, sender, network_env
 MAX_STEPS = 10000
 ACTION_DIM = 9
 LATENCY_PENALTY = 1
-LOSS_PENALTY = 10
+LOSS_PENALTY = 4
 THROUGHPUT_SCALAR = 1e5
 BIT_IN_BYTES = 8
 TEST_TRACE_IDX = 1
@@ -100,10 +101,10 @@ class SimulatedNetworkEnv(gym.Env):
             delta = (actions[i] - self.action_mean) / self.action_mean
             sender.apply_cwnd_delta(delta)
 
-        sender_mis, dur = self.net.run_for_dur(self.run_dur)
+        sender_mis, dur = self.net.run(self.run_dur)
 
-        for sender in self.senders:
-            sender.record_run()
+        # for sender in self.senders:
+        #     sender.record_run()
         self.steps_taken += 1
         avg_sender_obs, each_sender_obs = self._get_all_sender_obs()
 
@@ -120,11 +121,18 @@ class SimulatedNetworkEnv(gym.Env):
             losses.append(loss)
             cwnds.append(cwnd)
 
-            reward = (throughput / (BIT_IN_BYTES * THROUGHPUT_SCALAR) - LATENCY_PENALTY * latency - LOSS_PENALTY * loss)
+            reward = 2*(throughput / (BIT_IN_BYTES * THROUGHPUT_SCALAR) - LATENCY_PENALTY * latency - LOSS_PENALTY * loss)
+            if loss>0.01: # 存在丢包
+                # 按动作大小调整惩罚
+                if actions[i]==0:
+                    reward = 1
+                else:
+                    delta = 1 + (actions[i]-1 - self.action_mean) / self.action_mean
+                    reward *= delta
             # if (sender.cwnd - MAX_BURST_PACKETS) * BYTES_PER_PACKET < sender.bytes_in_flight:
             #     reward -= 10
-            if cwnd == 0.008 and np.random.randint(0,1000)/1000<self.expert_prob:
-                reward = -1
+            # if cwnd == 0.008 and np.random.randint(0,1000)/1000<self.expert_prob:
+            #     reward = -1
             rewards.append(reward)
         avg_reward = sum(rewards)/len(rewards)
         self.reward_list.append(avg_reward)
@@ -174,15 +182,11 @@ class SimulatedNetworkEnv(gym.Env):
         if self.episodes_run > 0 and self.episodes_run % 100 == 0:
             self.dump_events_to_file("828ver0aoidur05_log_run_%d.json" % self.episodes_run, 0)
         self.event_record = {"Events": []}
-        self.net.run_for_dur(self.run_dur)
+        # self.net.run(self.run_dur)
         # self.net.run_for_dur(self.run_dur)
-
-        # print("828ver3dur05_Reward: %0.2f, Ewma Reward: %0.2f" % (self.reward_sum, self.reward_ewma))
-        # print("527ver6dur05 _Reward1: %0.2f, Ewma Reward1: %0.2f" % (self.reward_sum1, self.reward_ewma1))
-        # self.reward_sum = 0.0
-        # self.reward_sum1 = 0.0
-        # self.update_reward_array(self.reward_ewma)
-        self.dump_events_to_file("828ver3dur05aoi_log_reward.json", 1)
+        # self.dump_events_to_file("828ver3dur05aoi_log_reward.json", 1)
+        for sender in self.senders:
+            sender.reset()
         avg_senders_obs, each_sender_obs = self._get_all_sender_obs()
         return [avg_senders_obs, each_sender_obs]
 

@@ -19,7 +19,7 @@ sys.path.insert(0,parentdir)
 import sender_obs
 
 MAX_CWND = 5000.0
-MIN_CWND = 4.0
+MIN_CWND = 1.0
 BYTES_PER_PACKET = 1500
 
 alpha=0.95
@@ -108,29 +108,40 @@ class Sender():
 
 
     def set_cwnd(self, new_cwnd):
-        self.cwnd = int(new_cwnd)
+        self.cwnd = new_cwnd
         # print("Attempt to set new rate to %f (min %f, max %f)" % (new_rate, MIN_RATE, MAX_RATE))
         if self.cwnd > MAX_CWND:
             self.cwnd = MAX_CWND
         if self.cwnd < MIN_CWND:
             self.cwnd = MIN_CWND
 
-    def record_run(self):
-        smi = self.get_run_data()
+    def record_run(self, prepaired=None):
+        smi = self.get_run_data(prepaired)
         # print(smi)
         self.history.step(smi)
+        return smi
 
     def get_obs(self):
         return self.history.as_array()
 
-    def get_run_data(self):
+    def get_run_data(self, prepaired:{}):
+        if len(prepaired)>0:
+            return sender_obs.SenderMonitorInterval(
+                self.id,
+                bytes_sent=prepaired["bytes_sent"],
+                bytes_acked=prepaired["bytes_acked"],
+                bytes_lost=prepaired["bytes_lost"],
+                send_start=prepaired["send_start"],
+                send_end=prepaired["send_end"],
+                recv_start=prepaired["recv_start"],
+                recv_end=prepaired["recv_end"],
+                rtt_samples=self.rtt_samples,
+                packet_size=BYTES_PER_PACKET,
+                cwnd=self.cwnd * 10 / MAX_CWND,
+                last_cwnd_action=self.last_cwnd_action
+            )
         obs_end_time = self.net.get_cur_time()
 
-        obs_dur = obs_end_time - self.obs_start_time
-        # print("Got %d acks in %f seconds" % (self.acked, obs_dur))
-        # print("Sent %d packets in %f seconds" % (self.sent, obs_dur))
-        # print("self.rate = %f" % self.rate)
-        # print(self.aoi_cur_time)
         return sender_obs.SenderMonitorInterval(
             self.id,
             bytes_sent=self.sent * BYTES_PER_PACKET,

@@ -47,7 +47,7 @@ total_total_reward = 0
 
 ram = buffer.MemoryBuffer(MAX_BUFFER)
 trainer = train.Trainer(STATE_DIM, ACTION_DIM, ram)
-# trainer.load_models(msg="cwnd", episode=20)
+# trainer.load_models(msg="cwnd", episode=190)
 
 
 def clip_state(state: np.ndarray):
@@ -78,7 +78,7 @@ def run_test(_ep):
     avg_throughputs = []
     avg_latencies = []
     avg_losses = []
-    for r in tqdm(range(MAX_EP_STEPS)):
+    for _ in tqdm(range(MAX_EP_STEPS)):
         env.render()
 
         actions = []
@@ -144,6 +144,7 @@ for _ep in range(MAX_EPISODES):
             # exlore_act = np.random.normal(act, eps)
             acts.append(explore_act)
         new_obs, rewards, done, info,cwnds = env.step(acts)
+        # time.sleep(0.5)
         avg_reward = np.mean(rewards)
         avg_cwnd = np.mean(cwnds)
         print("avg_reward:" + str(avg_reward), "cwnds:" + str(cwnds), info)
@@ -162,10 +163,10 @@ for _ep in range(MAX_EPISODES):
                 ram.add(state, action, reward, new_state)
 
         states = new_states
-        if r%100 == 0:
+        trainer.optimize()
+        if r == MAX_EP_STEPS-1:
             trainer.noise_weight *= 0.965
             env.expert_prob *= 0.965
-            trainer.optimize()
             run_test(_ep)
         if done:
             break

@@ -70,8 +70,7 @@ class SenderMonitorInterval():
     def as_array(self, features):
         #print(self.get("send rate"))
         #print(SenderMonitorIntervalMetric.get_by_name("send rate").scale)
-        return [max(0, self.get(f) - SenderMonitorIntervalMetric.get_by_name(f).min_val)
-                / SenderMonitorIntervalMetric.get_by_name(f).scale for f in features]
+        return [self.get(f) / SenderMonitorIntervalMetric.get_by_name(f).scale for f in features]
 
 class SenderHistory():
     def __init__(self, length, features, sender_id):
