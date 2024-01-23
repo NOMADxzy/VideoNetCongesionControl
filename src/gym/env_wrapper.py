@@ -101,7 +101,7 @@ class SimulatedNetworkEnv(gym.Env):
             delta = (actions[i] - self.action_mean) / self.action_mean
             sender.apply_cwnd_delta(delta)
 
-        sender_mis, dur = self.net.run(self.run_dur)
+        sender_mis, dur, best_avg_cwnd = self.net.run(self.run_dur)
 
         # for sender in self.senders:
         #     sender.record_run()
@@ -159,7 +159,7 @@ class SimulatedNetworkEnv(gym.Env):
         """
         return [avg_sender_obs, each_sender_obs], rewards, (self.steps_taken >= self.max_steps), \
             {"step": self.steps_taken, "action": np.mean(actions), "throughput":np.mean(throughputs),
-             "latency":np.mean(latencies), "loss":np.mean(losses), "cwnd": np.mean(cwnds)}, cwnds  # ,123
+             "latency":np.mean(latencies), "loss":np.mean(losses), "cwnd": np.mean(cwnds), "best_avg_cwnd":best_avg_cwnd}, cwnds  # ,123
 
     def print_debug(self):
         print("---Sender Debug---")

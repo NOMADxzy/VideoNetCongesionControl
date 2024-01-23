@@ -19,7 +19,7 @@ TAU = 0.001
 
 class Trainer:
 
-	def __init__(self, state_dim, action_dim, ram):
+	def __init__(self, state_dim, action_dim, ram, noise_weight=1):
 		"""
 		:param state_dim: Dimensions of state (int)
 		:param action_dim: Dimension of action (int)
@@ -32,7 +32,7 @@ class Trainer:
 		self.ram = ram
 		self.iter = 0
 		self.noise = utils.OrnsteinUhlenbeckActionNoise(self.action_dim)
-		self.noise_weight = 1
+		self.noise_weight = noise_weight
 
 		self.actor = model.Actor(self.state_dim, self.action_dim)
 		self.target_actor = model.Actor(self.state_dim, self.action_dim)
@@ -41,7 +41,6 @@ class Trainer:
 		self.critic = model.Critic(self.state_dim, self.action_dim)
 		self.target_critic = model.Critic(self.state_dim, self.action_dim)
 		self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),LEARNING_RATE)
-		self.eps = 3
 
 		utils.hard_update(self.target_actor, self.actor)
 		utils.hard_update(self.target_critic, self.critic)
@@ -120,24 +119,24 @@ class Trainer:
 		# 		' Loss_critic :- ', loss_critic.data.numpy()
 		# self.iter += 1
 
-	def save_models(self, msg, episode_count):
+	def save_models(self, root, msg, episode_count):
 		"""
 		saves the target actor and critic models
 		:param episode_count: the count of episodes iterated
 		:return:
 		"""
-		torch.save(self.target_actor.state_dict(), './CNN/Models/' + msg + "_" +str(episode_count) + '_actor.pt')
-		torch.save(self.target_critic.state_dict(), './CNN/Models/' + msg + "_" + str(episode_count) + '_critic.pt')
+		torch.save(self.target_actor.state_dict(), root + msg + "_" +str(episode_count) + '_actor.pt')
+		torch.save(self.target_critic.state_dict(), root + msg + "_" + str(episode_count) + '_critic.pt')
 		print ('Models saved successfully')
 
-	def load_models(self, msg, episode):
+	def load_models(self, msg, episode, root='./CNN/Models/'):
 		"""
 		loads the target actor and critic models, and copies them onto actor and critic models
 		:param episode: the count of episodes iterated (used to find the file name)
 		:return:
 		"""
-		self.actor.load_state_dict(torch.load('./CNN/Models/' + msg + "_" + str(episode) + '_actor.pt'))
-		self.critic.load_state_dict(torch.load('./CNN/Models/' + msg + "_" + str(episode) + '_critic.pt'))
+		self.actor.load_state_dict(torch.load(root + msg + "_" + str(episode) + '_actor.pt'))
+		self.critic.load_state_dict(torch.load(root + msg + "_" + str(episode) + '_critic.pt'))
 		utils.hard_update(self.target_actor, self.actor)
 		utils.hard_update(self.target_critic, self.critic)
 		print ('Models loaded succesfully')

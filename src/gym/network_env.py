@@ -101,6 +101,9 @@ class Network:
         self.env_loss_rate = loss_rate
         self.env_pack_volume = 10 * len(self.senders)
 
+    def set_net_ptr(self, n):
+        self.mahimahi_ptr = n
+        self.last_mahimahi_time = self.cooked_time[self.mahimahi_ptr - 1]
     def get_random_gauss_val(self, K_RANGE):
         bottom, top = K_RANGE
         mean = (bottom + top) / 2
@@ -210,7 +213,7 @@ class Network:
             sender_mis.append(smi)
 
 
-        return sender_mis, self.cur_time - start_time
+        return sender_mis, self.cur_time - start_time, best_avg_cwnd
 
 
 

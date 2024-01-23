@@ -14,6 +14,7 @@ SUMMARY_DIR = "./Results/sim"
 add_str = "CNN"
 summary_dir = os.path.join(*[SUMMARY_DIR, add_str])
 summary_dir = os.path.join(*[summary_dir, "log"])
+model_dir = os.path.join(*[summary_dir, "checkpoints/"])
 ts = time.strftime("%b%d-%H:%M:%S", time.gmtime())
 log_file_path = os.path.join(*[summary_dir, ts])
 utils.check_folder(log_file_path)
@@ -35,7 +36,7 @@ GAMMA = 0.9  # reward discount
 TAU = 0.01  # soft replacement
 MEMORY_CAPACITY = 10000
 BATCH_SIZE = 32
-SENDERS_NUM = 10
+SENDERS_NUM = 1
 
 
 env = SimulatedNetworkEnv(SENDERS_NUM)
@@ -46,7 +47,7 @@ a_dim = env.action_space.n
 total_total_reward = 0
 
 ram = buffer.MemoryBuffer(MAX_BUFFER)
-trainer = train.Trainer(STATE_DIM, ACTION_DIM, ram)
+trainer = train.Trainer(STATE_DIM, ACTION_DIM, ram, 0)
 # trainer.load_models(msg="cwnd", episode=190)
 
 
@@ -174,7 +175,7 @@ for _ep in range(MAX_EPISODES):
     # run_test(_ep)
     gc.collect()
     if _ep % 10 == 0:
-        trainer.save_models("cwnd", _ep)
+        trainer.save_models(model_dir,"cwnd", _ep)
 
 writer.close()
 print('Completed episodes')
