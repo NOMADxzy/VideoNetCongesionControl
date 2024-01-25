@@ -129,6 +129,8 @@ class SimulatedNetworkEnv(gym.Env):
                 else:
                     delta = 1 + (actions[i]-1 - self.action_mean) / self.action_mean
                     reward *= delta
+            elif best_avg_cwnd > cwnd and cwnd<MIN_CWND*10*2/MAX_CWND:
+                reward = -1
             # if (sender.cwnd - MAX_BURST_PACKETS) * BYTES_PER_PACKET < sender.bytes_in_flight:
             #     reward -= 10
             # if cwnd == 0.008 and np.random.randint(0,1000)/1000<self.expert_prob:
@@ -176,11 +178,12 @@ class SimulatedNetworkEnv(gym.Env):
 
     def reset(self):
         self.steps_taken = 0
-        self.net.reset(92)
+        self.net.reset(93)
 
         self.episodes_run += 1
         if self.episodes_run > 0 and self.episodes_run % 100 == 0:
-            self.dump_events_to_file("828ver0aoidur05_log_run_%d.json" % self.episodes_run, 0)
+            # self.dump_events_to_file("828ver0aoidur05_log_run_%d.json" % self.episodes_run, 0)
+            pass
         self.event_record = {"Events": []}
         # self.net.run(self.run_dur)
         # self.net.run_for_dur(self.run_dur)

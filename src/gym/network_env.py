@@ -19,7 +19,6 @@ sys.path.insert(0, parentdir)
 import sender_obs, sender
 
 MAX_CWND = 5000
-MIN_CWND = 4
 BYTES_PER_PACKET = 1500
 LINK_DELAY = 0.05
 alpha = 0.95
@@ -132,6 +131,7 @@ class Network:
         # randomize the start point of the trace
         # note: trace file starts with time 0
         self.mahimahi_ptr = np.random.randint(1, len(self.cooked_bw))
+        self.mahimahi_ptr = 10
         self.last_mahimahi_time = self.cooked_time[self.mahimahi_ptr - 1]
 
     def stash_env_state(self):
@@ -213,7 +213,7 @@ class Network:
             sender_mis.append(smi)
 
 
-        return sender_mis, self.cur_time - start_time, best_avg_cwnd
+        return sender_mis, self.cur_time - start_time, best_avg_cwnd * 10 / MAX_CWND
 
 
 

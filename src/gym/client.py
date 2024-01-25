@@ -31,18 +31,13 @@ MEMORY_CAPACITY = 10000
 BATCH_SIZE = 32
 SENDERS_NUM = 10
 
-
-ram = buffer.MemoryBuffer(MAX_BUFFER)
-trainer = train.Trainer(STATE_DIM, ACTION_DIM, ram, 0)
-trainer.load_models(msg="cwnd", episode=0, root='./Results/checkpoints/single/')
-
 class Client:
-    def __init__(self, trainer:train.Trainer, sender_num):
+    def __init__(self, trainer:train.Trainer, sender_num, selfish=False):
         self.agent = trainer
         self.sender_num = sender_num
         self.env = SimulatedNetworkEnv(sender_num)
         self.env.seed(1)
-        self.selfish = True
+        self.selfish = selfish
 
     def run(self, step):
         obs = self.env.reset()
@@ -51,7 +46,7 @@ class Client:
         states = self.trans_state(obs)
         info = {}
         cwnds = [1 for _ in range(0,self.sender_num)]
-        best_avg_cwnd = 1
+        best_avg_cwnd = 0
         for r in range(step):
             self.env.render()
 
@@ -64,14 +59,14 @@ class Client:
                 elif info["action"] < MEAN_ACT and info["cwnd"] <= 0.01:
                     use_expert = 1
 
-            for i,state in states:
+            for i,state in enumerate(states):
                 if self.selfish:
                     if cwnds[i] <= best_avg_cwnd:
-                        explore_act = ACTION_DIM-1
+                        explore_act = ACTION_DIM-3
                     else:
-                        explore_act = 0
+                        explore_act = 2
                 else:
-                    action, act, strength = trainer.get_exploration_action(state)
+                    action, act, strength = self.agent.get_exploration_action(state)
                     explore_act = act
                     if use_expert == -1 and act >= MEAN_ACT:
                         explore_act = 0
@@ -84,6 +79,7 @@ class Client:
                 acts.append(explore_act)
 
             new_obs, rewards, done, info, cwnds = self.env.step(acts)
+            best_avg_cwnd = info["best_avg_cwnd"]
 
             writer.add_scalar("avg_reward", np.mean(rewards), r)
             writer.add_scalar("avg_throughputs_mean", info["throughput"], r)
@@ -111,7 +107,13 @@ class Client:
             states.append(state)
         return np.float32(states)
 
+def get_agent():
+    ram = buffer.MemoryBuffer(MAX_BUFFER)
+    trainer = train.Trainer(STATE_DIM, ACTION_DIM, ram, 0)
+    trainer.load_models(msg="cwnd", episode=0, root='./Results/checkpoints/single/')
+    return trainer
 
 if __name__ == "__main__":
-    c = Client(trainer, 10)
+
+    c = Client(get_agent(), 10, True)
     c.run(100)

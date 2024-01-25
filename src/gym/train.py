@@ -14,10 +14,13 @@ SUMMARY_DIR = "./Results/sim"
 add_str = "CNN"
 summary_dir = os.path.join(*[SUMMARY_DIR, add_str])
 summary_dir = os.path.join(*[summary_dir, "log"])
-model_dir = os.path.join(*[summary_dir, "checkpoints/"])
+
 ts = time.strftime("%b%d-%H:%M:%S", time.gmtime())
 log_file_path = os.path.join(*[summary_dir, ts])
-utils.check_folder(log_file_path)
+
+model_dir = os.path.join(*[summary_dir, "checkpoints/"])
+
+utils.check_folder(model_dir)
 writer = SummaryWriter(log_file_path)
 # log_file_name = log_file_path + "/log"
 
@@ -36,7 +39,7 @@ GAMMA = 0.9  # reward discount
 TAU = 0.01  # soft replacement
 MEMORY_CAPACITY = 10000
 BATCH_SIZE = 32
-SENDERS_NUM = 1
+SENDERS_NUM = 10
 
 
 env = SimulatedNetworkEnv(SENDERS_NUM)
@@ -47,7 +50,7 @@ a_dim = env.action_space.n
 total_total_reward = 0
 
 ram = buffer.MemoryBuffer(MAX_BUFFER)
-trainer = train.Trainer(STATE_DIM, ACTION_DIM, ram, 0)
+trainer = train.Trainer(STATE_DIM, ACTION_DIM, ram, 1)
 # trainer.load_models(msg="cwnd", episode=190)
 
 
@@ -112,6 +115,7 @@ def run_test(_ep):
 eps = 3
 eps_dec_factor = 0.995
 MAX_EPS = 2
+test_record = True
 
 for _ep in range(MAX_EPISODES):
     obs = env.reset()
@@ -119,6 +123,12 @@ for _ep in range(MAX_EPISODES):
     # state = np.float32(clip_state(avg_senders_obs))
     print('EPISODE :- ', _ep)
     info = {}
+
+    avg_rewards = []
+    avg_throughputs = []
+    avg_latencies = []
+    avg_losses = []
+    avg_cwnds = []
 
     for r in range(MAX_EP_STEPS):
         env.render()
@@ -144,11 +154,16 @@ for _ep in range(MAX_EPISODES):
             actions.append(action)
             # exlore_act = np.random.normal(act, eps)
             acts.append(explore_act)
-        new_obs, rewards, done, info,cwnds = env.step(acts)
+        new_obs, rewards, done, info, cwnds = env.step(acts)
         # time.sleep(0.5)
         avg_reward = np.mean(rewards)
         avg_cwnd = np.mean(cwnds)
         print("avg_reward:" + str(avg_reward), "cwnds:" + str(cwnds), info)
+        avg_rewards.append(avg_reward)
+        avg_throughputs.append(info["throughput"])
+        avg_latencies.append(info["latency"])
+        avg_losses.append(info["loss"])
+        avg_cwnds.append(avg_cwnd)
         # if avg_reward<0:
         #     eps = min(eps+0.1, MAX_EPS)
 
@@ -168,7 +183,14 @@ for _ep in range(MAX_EPISODES):
         if r == MAX_EP_STEPS-1:
             trainer.noise_weight *= 0.965
             env.expert_prob *= 0.965
-            run_test(_ep)
+            if test_record:
+                writer.add_scalar("avg_cwnds", np.mean(avg_cwnds), _ep)
+                writer.add_scalar("avg_throughputs_mean", np.mean(avg_throughputs), _ep)
+                writer.add_scalar("avg_latencies_mean", np.mean(avg_latencies), _ep)
+                writer.add_scalar("avg_losses_mean", np.mean(avg_losses), _ep)
+                writer.add_scalar("avg_rewards_mean", np.mean(avg_rewards), _ep)
+            else:
+                run_test(_ep)
         if done:
             break
 
