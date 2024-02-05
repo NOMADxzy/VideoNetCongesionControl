@@ -66,7 +66,7 @@ class SimulatedNetworkEnv(gym.Env):
         self.last_time = 0
 
         self.action_space = spaces.Discrete(ACTION_DIM)
-        self.action_mean = ACTION_DIM / 2
+        self.action_mean = ACTION_DIM // 2
 
         single_obs_min_vec = sender_obs.get_min_obs_vector(self.features)
         single_obs_max_vec = sender_obs.get_max_obs_vector(self.features)
@@ -130,7 +130,7 @@ class SimulatedNetworkEnv(gym.Env):
                     delta = 1 + (actions[i]-1 - self.action_mean) / self.action_mean
                     reward *= delta
             elif best_avg_cwnd > cwnd and cwnd<MIN_CWND*10*2/MAX_CWND:
-                reward = -1
+                reward = 0
             # if (sender.cwnd - MAX_BURST_PACKETS) * BYTES_PER_PACKET < sender.bytes_in_flight:
             #     reward -= 10
             # if cwnd == 0.008 and np.random.randint(0,1000)/1000<self.expert_prob:
@@ -178,7 +178,8 @@ class SimulatedNetworkEnv(gym.Env):
 
     def reset(self):
         self.steps_taken = 0
-        self.net.reset(93)
+        # self.net.reset(93)
+        self.net.reset()
 
         self.episodes_run += 1
         if self.episodes_run > 0 and self.episodes_run % 100 == 0:

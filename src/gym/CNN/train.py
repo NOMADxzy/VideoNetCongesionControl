@@ -12,7 +12,7 @@ import CNN.utils as utils
 import CNN.model as model
 
 BATCH_SIZE = 128
-LEARNING_RATE = 0.03
+LEARNING_RATE = 0.01
 GAMMA = 0.99
 TAU = 0.001
 

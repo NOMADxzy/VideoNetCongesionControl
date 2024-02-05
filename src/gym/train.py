@@ -10,15 +10,11 @@ import scipy.stats as stats
 
 # env = gym.make('PccNs-v0')
 
-SUMMARY_DIR = "./Results/sim"
-add_str = "CNN"
-summary_dir = os.path.join(*[SUMMARY_DIR, add_str])
-summary_dir = os.path.join(*[summary_dir, "log"])
-
-ts = time.strftime("%b%d-%H:%M:%S", time.gmtime())
+summary_dir = os.path.join(*["Results", "sim"])
+ts = time.strftime("%b%d-%H_%M_%S", time.gmtime())
 log_file_path = os.path.join(*[summary_dir, ts])
 
-model_dir = os.path.join(*[summary_dir, "checkpoints/"])
+model_dir = os.path.join(*[log_file_path, "checkpoints/"])
 
 utils.check_folder(model_dir)
 writer = SummaryWriter(log_file_path)
@@ -112,9 +108,9 @@ def run_test(_ep):
     writer.add_scalar("avg_rewards_mean", avg_rewards_mean, _ep)
     writer.flush()
 
-eps = 3
-eps_dec_factor = 0.995
-MAX_EPS = 2
+
+
+
 test_record = True
 
 for _ep in range(MAX_EPISODES):
@@ -139,7 +135,7 @@ for _ep in range(MAX_EPISODES):
         if "loss" in info :
             if info["loss"] > 0.1:
                 use_expert = -1
-            elif info["action"]<MEAN_ACT and info["cwnd"]<=0.01:
+            elif info["action"] < MEAN_ACT and info["cwnd"]<=0.01:
                 use_expert = 1
 
         for state in states:
