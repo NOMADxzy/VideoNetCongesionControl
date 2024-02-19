@@ -57,8 +57,11 @@ def clip_state(state: np.ndarray):
     return np.hstack((rate, other))
 
 
-def trans_state(obs):
+def trans_state(obs, avg=False):
     avg_senders_obs, each_sender_obs = obs
+    avg_state_res = np.vstack((each_sender_obs[0], np.asarray([avg_senders_obs[1], avg_senders_obs[4]])))  # 保持形状
+    avg_state_res[5] = avg_senders_obs[5]
+
     avg_senders_obs = avg_senders_obs.transpose()
     states = []
     avg_state = np.asarray([avg_senders_obs[1], avg_senders_obs[4]])
@@ -66,13 +69,13 @@ def trans_state(obs):
         sender_obs = sender_obs.transpose()
         state = np.vstack((sender_obs, avg_state))
         states.append(state)
-    return np.float32(states)
+    return np.float32(states), np.float32(avg_state_res)
 
 
 def run_test(_ep):
     print("-- TEST START --")
     obs = env.reset()
-    states = trans_state(obs)
+    states, _ = trans_state(obs)
 
     avg_rewards = []
     avg_throughputs = []
@@ -95,7 +98,7 @@ def run_test(_ep):
         avg_latencies.append(info["latency"])
         avg_losses.append(info["loss"])
 
-        states = trans_state(new_obs)
+        states, _ = trans_state(new_obs)
 
         if done:
             break
@@ -115,7 +118,7 @@ test_record = True
 
 for _ep in range(MAX_EPISODES):
     obs = env.reset()
-    states = trans_state(obs)
+    states, _ = trans_state(obs)
     # state = np.float32(clip_state(avg_senders_obs))
     print('EPISODE :- ', _ep)
     info = {}
@@ -163,7 +166,7 @@ for _ep in range(MAX_EPISODES):
         # if avg_reward<0:
         #     eps = min(eps+0.1, MAX_EPS)
 
-        new_states = trans_state(new_obs)
+        new_states, _ = trans_state(new_obs)
         anti_dup = set({})
         for i in range(0,len(env.senders)):
             state = states[i]

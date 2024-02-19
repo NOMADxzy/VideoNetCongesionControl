@@ -63,10 +63,11 @@ class Client:
         # self.env.net.set_net_ptr(90)
         writer = self.generateWriter()
 
-        states = self.trans_state(obs)
-        info = {}
+        states, avg_state = self.trans_state(obs)
+        info = {"cwnd":1}
         cwnds = [1 for _ in range(0, self.sender_num)]
-        best_avg_cwnd = 0
+        best_act = self.agent.get_exploration_action(avg_state)
+        best_avg_cwnd = self.applyAct(info["cwnd"], best_act)
         for r in range(step):
             self.env.render()
 
@@ -130,7 +131,6 @@ class Client:
                 acts.append(explore_act)
 
             new_obs, rewards, done, info, cwnds = self.env.step(acts)
-            best_avg_cwnd = info["best_avg_cwnd"]
 
             writer.add_scalar("avg_reward", np.mean(rewards), r)
             writer.add_scalar("avg_throughputs_mean", info["throughput"], r)
@@ -139,7 +139,7 @@ class Client:
             writer.add_scalar("avg_cwnd_mean", info["cwnd"], r)
             writer.add_scalar("avg_action_mean", info["action"], r)
 
-            new_states = self.trans_state(new_obs)
+            new_states, avg_state = self.trans_state(new_obs)
 
             states = new_states
             if done:
@@ -149,6 +149,9 @@ class Client:
 
     def trans_state(self,obs):
         avg_senders_obs, each_sender_obs = obs
+        avg_state_res = np.vstack((each_sender_obs[0], np.asarray([avg_senders_obs[1], avg_senders_obs[4]])))  # 保持形状
+        avg_state_res[5] = avg_senders_obs[5]
+
         avg_senders_obs = avg_senders_obs.transpose()
         states = []
         avg_state = np.asarray([avg_senders_obs[1], avg_senders_obs[4]])
@@ -156,7 +159,7 @@ class Client:
             sender_obs = sender_obs.transpose()
             state = np.vstack((sender_obs, avg_state))
             states.append(state)
-        return np.float32(states)
+        return np.float32(states), np.float32(avg_state_res)
 
 def get_agent():
     ram = buffer.MemoryBuffer(MAX_BUFFER)

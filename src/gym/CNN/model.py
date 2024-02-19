@@ -28,19 +28,19 @@ class Critic(nn.Module):
 		channel_fc = 128
 
 		# self.critic_conv1 = nn.Conv1d(self.input_channel, channel_cnn, 4)  # send
-		self.critic_conv2 = nn.Conv1d(self.input_channel, channel_cnn, 4)  # recv
+		# self.critic_conv2 = nn.Conv1d(self.input_channel, channel_cnn, 4)  # recv
 		# self.critic_conv3 = nn.Conv1d(self.input_channel, channel_cnn, 4)  # latency
 		# self.critic_fc_1 = nn.Linear(self.input_channel, channel_fc)  # latency inc
-		self.critic_fc_2 = nn.Linear(self.input_channel, channel_fc)  # loss
+		# self.critic_fc_2 = nn.Linear(self.input_channel, channel_fc)  # loss
 		self.critic_fc_3 = nn.Linear(self.input_channel, channel_fc)  # cwnd
 		self.critic_conv4 = nn.Conv1d(self.input_channel, channel_cnn, 4)  # recv
 		self.critic_conv5 = nn.Conv1d(self.input_channel, channel_cnn, 4)  # loss
 
 		# self.critic_conv1.weight.data = fanin_init(self.critic_conv1.weight.data.size())
-		self.critic_conv2.weight.data = fanin_init(self.critic_conv2.weight.data.size())
+		# self.critic_conv2.weight.data = fanin_init(self.critic_conv2.weight.data.size())
 		# self.critic_conv3.weight.data = fanin_init(self.critic_conv3.weight.data.size())
 		# self.critic_fc_1.weight.data = fanin_init(self.critic_fc_1.weight.data.size())
-		self.critic_fc_2.weight.data = fanin_init(self.critic_fc_2.weight.data.size())
+		# self.critic_fc_2.weight.data = fanin_init(self.critic_fc_2.weight.data.size())
 		self.critic_fc_3.weight.data = fanin_init(self.critic_fc_3.weight.data.size())
 		self.critic_conv4.weight.data = fanin_init(self.critic_conv4.weight.data.size())
 		self.critic_conv5.weight.data = fanin_init(self.critic_conv5.weight.data.size())
@@ -50,7 +50,7 @@ class Critic(nn.Module):
 
 		# ===================Hide layer=========================
 		# incoming_size = 5 * channel_cnn * 5 + 3 * channel_fc + channel_fc
-		incoming_size = 3 * channel_cnn * 5 + 2 * channel_fc + channel_fc
+		incoming_size = 2 * channel_cnn * 5 + 2 * channel_fc
 
 		self.fc1 = nn.Linear(in_features=incoming_size, out_features=channel_fc)
 		# self.fc2 = nn.Linear(in_features=channel_fc, out_features=channel_fc)
@@ -66,38 +66,38 @@ class Critic(nn.Module):
 		"""
 
 		sends_batch = state[:, 0:1, :]
-		throughputs_batch = state[:, 1:2, :]  ## refer to env_train.py
+		# throughputs_batch = state[:, 1:2, :]  ## refer to env_train.py
 		latency_batch = state[:, 2:3, :]
 
 		latency_inc_batch = state[:, 3:4, -1]
-		loss_batch = state[:, 4:5, -1]
+		# loss_batch = state[:, 4:5, -1]
 		cwnd_batch = state[:, 5:6, -1]
 
 		avg_throughputs_batch = state[:, 6:7, :]
 		avg_loss_batch = state[:, 7:8, :]
 
 		# x_1 = F.relu(self.critic_conv1(sends_batch))
-		x_2 = F.relu(self.critic_conv2(throughputs_batch))
+		# x_2 = F.relu(self.critic_conv2(throughputs_batch))
 		# x_3 = F.relu(self.critic_conv3(latency_batch))
 		# x_4 = F.relu(self.critic_fc_1(latency_inc_batch))
-		x_5 = F.relu(self.critic_fc_2(loss_batch))
+		# x_5 = F.relu(self.critic_fc_2(loss_batch))
 		x_6 = F.relu(self.critic_fc_3(cwnd_batch))
 		x_7 = F.relu(self.critic_conv4(avg_throughputs_batch))
 		x_8 = F.relu(self.critic_conv5(avg_loss_batch))
 		a1 = F.relu(self.fca1(action))
 
 		# x_1 = x_1.view(-1, self.num_flat_features(x_1))
-		x_2 = x_2.view(-1, self.num_flat_features(x_2))
+		# x_2 = x_2.view(-1, self.num_flat_features(x_2))
 		# x_3 = x_3.view(-1, self.num_flat_features(x_3))
 		# x_4 = x_4.view(-1, self.num_flat_features(x_4))
-		x_5 = x_5.view(-1, self.num_flat_features(x_5))
+		# x_5 = x_5.view(-1, self.num_flat_features(x_5))
 		x_6 = x_6.view(-1, self.num_flat_features(x_6))
 		x_7 = x_7.view(-1, self.num_flat_features(x_7))
 		x_8 = x_8.view(-1, self.num_flat_features(x_8))
 		a1 = a1.view(-1, self.num_flat_features(a1))
 
 		# x = torch.cat([x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_8, a1], 1)
-		x = torch.cat([x_2, x_5, x_6, x_7, x_8, a1], 1)
+		x = torch.cat([x_6, x_7, x_8, a1], 1)
 		x = F.relu(self.fc1(x))
 
 		score = F.softmax(self.fc3(x), dim=1)
@@ -122,26 +122,26 @@ class Actor(nn.Module):
 		channel_fc = 128
 
 		# self.actor_conv1 = nn.Conv1d(self.input_channel, channel_cnn, 4)  # L_out = 8 - (4-1) -1 + 1 = 5
-		self.actor_conv2 = nn.Conv1d(self.input_channel, channel_cnn, 4)
+		# self.actor_conv2 = nn.Conv1d(self.input_channel, channel_cnn, 4)
 		# self.actor_conv3 = nn.Conv1d(self.input_channel, channel_cnn, 4)
 		# self.actor_fc_1 = nn.Linear(self.input_channel, channel_fc)
-		self.actor_fc_2 = nn.Linear(self.input_channel, channel_fc)
+		# self.actor_fc_2 = nn.Linear(self.input_channel, channel_fc)
 		self.actor_fc_3 = nn.Linear(self.input_channel, channel_fc)
 		self.actor_conv4 = nn.Conv1d(self.input_channel, channel_cnn, 4)
 		self.actor_conv5 = nn.Conv1d(self.input_channel, channel_cnn, 4)
 
 		# self.actor_conv1.weight.data = fanin_init(self.actor_conv1.weight.data.size())
-		self.actor_conv2.weight.data = fanin_init(self.actor_conv2.weight.data.size())
+		# self.actor_conv2.weight.data = fanin_init(self.actor_conv2.weight.data.size())
 		# self.actor_conv3.weight.data = fanin_init(self.actor_conv3.weight.data.size())
 		# self.actor_fc_1.weight.data = fanin_init(self.actor_fc_1.weight.data.size())
-		self.actor_fc_2.weight.data = fanin_init(self.actor_fc_2.weight.data.size())
+		# self.actor_fc_2.weight.data = fanin_init(self.actor_fc_2.weight.data.size())
 		self.actor_fc_3.weight.data = fanin_init(self.actor_fc_3.weight.data.size())
 		self.actor_conv4.weight.data = fanin_init(self.actor_conv4.weight.data.size())
 		self.actor_conv5.weight.data = fanin_init(self.actor_conv5.weight.data.size())
 
 		# ===================Hide layer=========================
 		# incoming_size = 5 * channel_cnn * 5 + 3 * channel_fc  #
-		incoming_size = 3 * channel_cnn * 5 + 2 * channel_fc  #
+		incoming_size = 2 * channel_cnn * 5 + 1 * channel_fc  #
 
 		self.fc1 = nn.Linear(in_features=incoming_size, out_features=channel_fc)
 		# self.fc2 = nn.Linear(in_features=channel_fc, out_features=channel_fc)
@@ -170,25 +170,25 @@ class Actor(nn.Module):
 		avg_loss_batch = state[:, 7:8, :]
 
 		# x_1 = F.relu(self.actor_conv1(sends_batch))
-		x_2 = F.relu(self.actor_conv2(throughputs_batch))
+		# x_2 = F.relu(self.actor_conv2(throughputs_batch))
 		# x_3 = F.relu(self.actor_conv3(latency_batch))
 		# x_4 = F.relu(self.actor_fc_1(latency_inc_batch))
-		x_5 = F.relu(self.actor_fc_2(loss_batch))
+		# x_5 = F.relu(self.actor_fc_2(loss_batch))
 		x_6 = F.relu(self.actor_fc_3(cwnd_batch))
 		x_7 = F.relu(self.actor_conv4(avg_throughputs_batch))
 		x_8 = F.relu(self.actor_conv5(avg_loss_batch))
 
 		# x_1 = x_1.view(-1, self.num_flat_features(x_1))
-		x_2 = x_2.view(-1, self.num_flat_features(x_2))
+		# x_2 = x_2.view(-1, self.num_flat_features(x_2))
 		# x_3 = x_3.view(-1, self.num_flat_features(x_3))
 		# x_4 = x_4.view(-1, self.num_flat_features(x_4))
-		x_5 = x_5.view(-1, self.num_flat_features(x_5))
+		# x_5 = x_5.view(-1, self.num_flat_features(x_5))
 		x_6 = x_6.view(-1, self.num_flat_features(x_6))
 		x_7 = x_7.view(-1, self.num_flat_features(x_7))
 		x_8 = x_8.view(-1, self.num_flat_features(x_8))
 
 		# x = torch.cat([x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_8], 1)
-		x = torch.cat([ x_2, x_5, x_6, x_7, x_8], 1)
+		x = torch.cat([x_6, x_7, x_8], 1)
 		x = F.relu(self.fc1(x))
 
 		actor = F.softmax(self.fc3(x), dim=1)
